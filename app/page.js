@@ -1,95 +1,167 @@
-import Image from "next/image";
-import styles from "./page.module.css";
+"use client";
+import { useEffect, useState } from "react";
+import axios from "axios";
+import { Bar, Pie } from "react-chartjs-2";
+import Chart from "chart.js/auto";
 
-export default function Home() {
+const HomePage = () => {
+  const [month, setMonth] = useState("3");
+  const [transactions, setTransactions] = useState([]);
+  const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [statistics, setStatistics] = useState(null);
+  const [barChartData, setBarChartData] = useState(null);
+  const [pieChartData, setPieChartData] = useState(null);
+
+  useEffect(() => {
+    fetchInitialize();
+    fetchTransactions();
+    fetchStatistics();
+    fetchBarChart();
+    fetchPieChart();
+  }, [month, search, page]);
+
+  const fetchInitialize = async () => {
+    await axios.get("/api/initialize");
+  };
+
+  const fetchTransactions = async () => {
+    const response = await axios.get("/api/transactions", {
+      params: { month, search, page },
+    });
+    console.log(response.data);
+    setTransactions(response.data.transactions || []);
+    setTotalPages(Math.ceil(response.data.total / 10));
+  };
+
+  const fetchStatistics = async () => {
+    const response = await axios.get("/api/statistics", { params: { month } });
+    setStatistics(response.data);
+  };
+
+  const fetchBarChart = async () => {
+    const response = await axios.get("/api/bar-chart", { params: { month } });
+    setBarChartData({
+      labels: response.data.map((item) => item.priceRange),
+      datasets: [
+        {
+          label: "Number of Items",
+          data: response.data.map((item) => item.count),
+          backgroundColor: "rgba(75, 192, 192, 0.6)",
+        },
+      ],
+    });
+  };
+
+  const fetchPieChart = async () => {
+    const response = await axios.get("/api/pie-chart", { params: { month } });
+    setPieChartData({
+      labels: response.data.map((item) => item._id),
+      datasets: [
+        {
+          label: "Categories",
+          data: response.data.map((item) => item.count),
+          backgroundColor: [
+            "rgba(255, 99, 132, 0.6)",
+            "rgba(54, 162, 235, 0.6)",
+            "rgba(255, 206, 86, 0.6)",
+            "rgba(75, 192, 192, 0.6)",
+            "rgba(153, 102, 255, 0.6)",
+            "rgba(255, 159, 64, 0.6)",
+          ],
+        },
+      ],
+    });
+  };
+
   return (
-    <main className={styles.main}>
-      <div className={styles.description}>
-        <p>
-          Get started by editing&nbsp;
-          <code className={styles.code}>app/page.js</code>
-        </p>
-        <div>
-          <a
-            href="https://vercel.com?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            By{" "}
-            <Image
-              src="/vercel.svg"
-              alt="Vercel Logo"
-              className={styles.vercelLogo}
-              width={100}
-              height={24}
-              priority
-            />
-          </a>
-        </div>
+    <div>
+      <h1>Transactions Dashboard</h1>
+      <div>
+        <label>Select Month: </label>
+        <select value={month} onChange={(e) => setMonth(e.target.value)}>
+          {Array.from({ length: 12 }, (_, i) => (
+            <option key={i + 1} value={i + 1}>
+              {new Date(0, i).toLocaleString("default", { month: "long" })}
+            </option>
+          ))}
+        </select>
       </div>
-
-      <div className={styles.center}>
-        <Image
-          className={styles.logo}
-          src="/next.svg"
-          alt="Next.js Logo"
-          width={180}
-          height={37}
-          priority
+      <div>
+        <input
+          type="text"
+          placeholder="Search transactions..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
         />
       </div>
-
-      <div className={styles.grid}>
-        <a
-          href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className={styles.card}
-          target="_blank"
-          rel="noopener noreferrer"
+      <table>
+        <thead>
+          <tr>
+            <th>Title</th>
+            <th>Description</th>
+            <th>Price</th>
+            <th>Date of Sale</th>
+            <th>Category</th>
+            <th>Sold</th>
+          </tr>
+        </thead>
+        <tbody>
+          {Array.isArray(transactions) && transactions.length > 0 ? (
+            transactions.map((transaction) => (
+              <tr key={transaction._id}>
+                <td>{transaction.title}</td>
+                <td>{transaction.description}</td>
+                <td>{transaction.price}</td>
+                <td>{new Date(transaction.dateOfSale).toLocaleDateString()}</td>
+                <td>{transaction.category}</td>
+                <td>{transaction.sold ? "Yes" : "No"}</td>
+              </tr>
+            ))
+          ) : (
+            <tr>
+              <td colSpan="6">No transactions found</td>
+            </tr>
+          )}
+        </tbody>
+      </table>
+      <div>
+        <button onClick={() => setPage(page - 1)} disabled={page === 1}>
+          Previous
+        </button>
+        <button
+          onClick={() => setPage(page + 1)}
+          disabled={page === totalPages}
         >
-          <h2>
-            Docs <span>-&gt;</span>
-          </h2>
-          <p>Find in-depth information about Next.js features and API.</p>
-        </a>
-
-        <a
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className={styles.card}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2>
-            Learn <span>-&gt;</span>
-          </h2>
-          <p>Learn about Next.js in an interactive course with&nbsp;quizzes!</p>
-        </a>
-
-        <a
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className={styles.card}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2>
-            Templates <span>-&gt;</span>
-          </h2>
-          <p>Explore starter templates for Next.js.</p>
-        </a>
-
-        <a
-          href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className={styles.card}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2>
-            Deploy <span>-&gt;</span>
-          </h2>
-          <p>
-            Instantly deploy your Next.js site to a shareable URL with Vercel.
-          </p>
-        </a>
+          Next
+        </button>
       </div>
-    </main>
+
+      {statistics && (
+        <div>
+          <h2>Statistics</h2>
+          <p>Total Sale Amount: ${statistics.totalSaleAmount}</p>
+          <p>Total Sold Items: {statistics.totalSoldItems}</p>
+          <p>Total Not Sold Items: {statistics.totalNotSoldItems}</p>
+        </div>
+      )}
+
+      {barChartData && (
+        <div>
+          <h2>Price Range Bar Chart</h2>
+          <Bar data={barChartData} />
+        </div>
+      )}
+
+      {pieChartData && (
+        <div>
+          <h2>Category Distribution Pie Chart</h2>
+          <Pie data={pieChartData} />
+        </div>
+      )}
+    </div>
   );
-}
+};
+
+export default HomePage;
